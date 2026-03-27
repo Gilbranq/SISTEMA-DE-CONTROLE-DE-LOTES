@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Controle de Lotes — Oracle APEX 19</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f1117;
+  --bg2: #161b27;
+  --bg3: #1e2535;
+  --bg4: #252d40;
+  --border: rgba(99,130,201,0.15);
+  --border2: rgba(99,130,201,0.28);
+  --text: #e8edf8;
+  --text2: #8a9bc4;
+  --text3: #5a6b90;
+  --accent: #4f8ef7;
+  --accent2: #2d5fc4;
+  --green: #2dce6e;
+  --green-bg: rgba(45,206,110,0.1);
+  --green-border: rgba(45,206,110,0.25);
+  --amber: #f5a623;
+  --amber-bg: rgba(245,166,35,0.1);
+  --amber-border: rgba(245,166,35,0.25);
+  --red: #f25757;
+  --red-bg: rgba(242,87,87,0.1);
+  --red-border: rgba(242,87,87,0.25);
+  --blue-bg: rgba(79,142,247,0.1);
+  --blue-border: rgba(79,142,247,0.25);
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+  --radius: 6px;
+  --radius-lg: 10px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.header-brand {
+  display: flex; align-items: center; gap: 12px;
+}
+.header-icon {
+  width: 30px; height: 30px; border-radius: 6px;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+}
+.header-title { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: var(--text); }
+.header-sub { font-size: 11px; color: var(--text3); font-family: var(--mono); margin-top: 1px; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.pill {
+  font-size: 11px; font-family: var(--mono);
+  padding: 3px 10px; border-radius: 999px; border: 1px solid;
+  font-weight: 500;
+}
+.pill-green { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
+.pill-blue { background: var(--blue-bg); border-color: var(--blue-border); color: var(--accent); }
+.pill-amber { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
+.pill-red { background: var(--red-bg); border-color: var(--red-border); color: var(--red); }
+
+/* ── LAYOUT ── */
+.shell { display: flex; flex: 1; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 220px; flex-shrink: 0;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 1.25rem 0;
+  display: flex; flex-direction: column; gap: 2px;
+  position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto;
+}
+.nav-section { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; color: var(--text3); padding: 1rem 1.25rem 0.4rem; text-transform: uppercase; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 1.25rem;
+  font-size: 13px; color: var(--text2);
+  cursor: pointer; border: none; background: none;
+  width: 100%; text-align: left;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: var(--bg3); color: var(--accent); border-left-color: var(--accent); }
+.nav-icon { font-size: 14px; width: 16px; text-align: center; }
+.nav-count {
+  margin-left: auto; font-size: 10px; font-family: var(--mono);
+  background: var(--bg4); color: var(--text2);
+  padding: 1px 6px; border-radius: 999px;
+}
+.nav-count.red { background: var(--red-bg); color: var(--red); }
+.nav-count.amber { background: var(--amber-bg); color: var(--amber); }
+
+/* ── MAIN ── */
+.main { flex: 1; padding: 2rem; overflow-y: auto; }
+.page { display: none; animation: fadeIn 0.2s ease; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.page-header { margin-bottom: 1.75rem; }
+.page-title { font-size: 20px; font-weight: 600; color: var(--text); }
+.page-sub { font-size: 12px; color: var(--text3); font-family: var(--mono); margin-top: 4px; }
+
+/* ── METRICS ── */
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.75rem; }
+.metric {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.1rem 1.25rem;
+  position: relative; overflow: hidden;
+}
+.metric::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+}
+.metric.m-blue::before { background: var(--accent); }
+.metric.m-green::before { background: var(--green); }
+.metric.m-amber::before { background: var(--amber); }
+.metric.m-red::before { background: var(--red); }
+.metric-label { font-size: 11px; color: var(--text3); letter-spacing: 0.05em; text-transform: uppercase; }
+.metric-value { font-size: 32px; font-weight: 300; font-family: var(--mono); margin: 4px 0 2px; }
+.metric.m-blue .metric-value { color: var(--accent); }
+.metric.m-green .metric-value { color: var(--green); }
+.metric.m-amber .metric-value { color: var(--amber); }
+.metric.m-red .metric-value { color: var(--red); }
+.metric-note { font-size: 11px; color: var(--text3); }
+
+/* ── GRID ── */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+/* ── CARD ── */
+.card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+.card-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text3); margin-bottom: 1rem; }
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+
+/* ── TABLE ── */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  text-align: left; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text3); padding: 0 12px 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+tbody td {
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text2); vertical-align: middle;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { color: var(--text); background: var(--bg3); }
+.mono { font-family: var(--mono); font-size: 12px; color: var(--text); }
+
+/* ── STATUS BADGES ── */
+.badge {
+  font-size: 10px; font-family: var(--mono); font-weight: 500;
+  padding: 2px 8px; border-radius: 4px; border: 1px solid;
+  display: inline-block; white-space: nowrap;
+}
+.b-pendente { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
+.b-processado { background: var(--blue-bg); border-color: var(--blue-border); color: var(--accent); }
+.b-concluido { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
+.b-ativo { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
+.b-vencido { background: var(--red-bg); border-color: var(--red-border); color: var(--red); }
+.b-bloqueado { background: rgba(90,107,144,0.15); border-color: rgba(90,107,144,0.3); color: var(--text2); }
+.b-consumido { background: rgba(90,107,144,0.1); border-color: rgba(90,107,144,0.2); color: var(--text3); }
+.b-critico { background: var(--red-bg); border-color: var(--red-border); color: var(--red); }
+.b-urgente { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
+.b-alerta { background: rgba(245,166,35,0.07); border-color: rgba(245,166,35,0.2); color: #c9841c; }
+.b-atencao { background: var(--blue-bg); border-color: var(--blue-border); color: var(--accent); }
+
+/* ── PROGRESS ── */
+.progress-row { margin-bottom: 14px; }
+.progress-meta { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px; }
+.progress-label { color: var(--text2); }
+.progress-track { height: 3px; background: var(--bg4); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 2px; transition: width 0.8s ease; }
+
+/* ── DOT LEGEND ── */
+.dot-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.dot-row:last-child { border-bottom: none; }
+.dot-left { display: flex; align-items: center; gap: 10px; color: var(--text2); }
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot-value { font-family: var(--mono); font-size: 13px; color: var(--text); font-weight: 500; }
+
+/* ── FORM ── */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-full { grid-column: 1 / -1; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); }
+.form-input, .form-select {
+  font-size: 13px; font-family: var(--sans);
+  padding: 8px 12px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: var(--radius); color: var(--text);
+  outline: none; transition: border-color 0.15s;
+}
+.form-input:focus, .form-select:focus { border-color: var(--accent); }
+.form-input::placeholder { color: var(--text3); }
+.form-select option { background: var(--bg3); }
+.form-actions { display: flex; gap: 8px; justify-content: flex-end; padding-top: 4px; }
+
+/* ── BUTTONS ── */
+.btn {
+  font-size: 12px; font-family: var(--sans); font-weight: 500;
+  padding: 7px 16px; border-radius: var(--radius);
+  border: 1px solid var(--border2); cursor: pointer;
+  background: var(--bg3); color: var(--text2);
+  transition: all 0.15s;
+}
+.btn:hover { background: var(--bg4); color: var(--text); border-color: var(--border2); }
+.btn-primary {
+  background: var(--accent2); border-color: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--accent); color: #fff; }
+.btn-sm { font-size: 11px; padding: 4px 10px; }
+
+/* ── ALERT ROWS ── */
+.alert-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.alert-row:last-child { border-bottom: none; }
+.alert-indicator { width: 3px; height: 36px; border-radius: 2px; flex-shrink: 0; }
+.alert-info { flex: 1; }
+.alert-lote { font-size: 13px; font-weight: 500; color: var(--text); font-family: var(--mono); }
+.alert-prod { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+/* ── RULE ROWS ── */
+.rule-row { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+.rule-row:last-child { border-bottom: none; }
+.rule-code { font-size: 11px; font-family: var(--mono); font-weight: 500; color: var(--accent); background: var(--blue-bg); border: 1px solid var(--blue-border); padding: 2px 8px; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.rule-body {}
+.rule-desc { font-size: 13px; color: var(--text); margin-bottom: 3px; }
+.rule-msg { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+
+/* ── PERM TABLE ── */
+.check-ok { color: var(--green); font-weight: 600; text-align: center; }
+.check-no { color: var(--text3); text-align: center; }
+
+/* ── CODE BLOCK ── */
+.code-block {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1rem 1.25rem;
+  font-family: var(--mono); font-size: 12px; color: #8ab4f8;
+  overflow-x: auto; line-height: 1.7;
+  margin-top: 0.75rem;
+}
+.kw { color: #c792ea; }
+.cm { color: var(--text3); }
+.str { color: #a5d6a7; }
+.fn { color: #82b1ff; }
+.num { color: #f78c6c; }
+
+/* ── PHASE TIMELINE ── */
+.phases { display: flex; flex-direction: column; gap: 8px; }
+.phase-row { display: flex; align-items: center; gap: 12px; }
+.phase-num { font-size: 10px; font-family: var(--mono); font-weight: 600; color: var(--accent); background: var(--blue-bg); border: 1px solid var(--blue-border); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.phase-info { flex: 1; }
+.phase-name { font-size: 13px; color: var(--text); }
+.phase-dur { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+.phase-bar { width: 100px; height: 3px; background: var(--bg4); border-radius: 2px; overflow: hidden; }
+.phase-fill { height: 100%; background: var(--accent2); border-radius: 2px; }
+
+/* ── ARCH BOXES ── */
+.arch { display: flex; flex-direction: column; gap: 2px; }
+.arch-layer {
+  border: 1px solid var(--border2); border-radius: var(--radius);
+  padding: 10px 14px;
+}
+.arch-layer-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+.arch-items { display: flex; gap: 8px; flex-wrap: wrap; }
+.arch-chip { font-size: 11px; font-family: var(--mono); padding: 3px 10px; border-radius: 4px; border: 1px solid; }
+.layer-apex .arch-layer { background: rgba(79,142,247,0.04); border-color: rgba(79,142,247,0.2); }
+.layer-apex .arch-layer-title { color: var(--accent); }
+.layer-apex .arch-chip { background: var(--blue-bg); border-color: var(--blue-border); color: var(--accent); }
+.layer-plsql .arch-layer { background: rgba(45,206,110,0.04); border-color: rgba(45,206,110,0.2); }
+.layer-plsql .arch-layer-title { color: var(--green); }
+.layer-plsql .arch-chip { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
+.layer-db .arch-layer { background: rgba(245,166,35,0.04); border-color: rgba(245,166,35,0.2); }
+.layer-db .arch-layer-title { color: var(--amber); }
+.layer-db .arch-chip { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
+.layer-int .arch-layer { background: rgba(90,107,144,0.08); border-color: var(--border2); }
+.layer-int .arch-layer-title { color: var(--text2); }
+.layer-int .arch-chip { background: var(--bg4); border-color: var(--border); color: var(--text2); }
+.arch-arrow { text-align: center; color: var(--text3); font-size: 14px; line-height: 1; }
+
+/* ── DER BOXES ── */
+.der { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
+.der-table {
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: var(--radius-lg); overflow: hidden; min-width: 190px; flex: 1;
+}
+.der-table-header {
+  background: var(--bg4); padding: 8px 14px;
+  font-size: 12px; font-weight: 600; font-family: var(--mono);
+  color: var(--text); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.der-pk { font-size: 9px; font-weight: 700; color: var(--amber); background: var(--amber-bg); border: 1px solid var(--amber-border); padding: 1px 5px; border-radius: 3px; }
+.der-fk { font-size: 9px; font-weight: 700; color: var(--accent); background: var(--blue-bg); border: 1px solid var(--blue-border); padding: 1px 5px; border-radius: 3px; }
+.der-field {
+  padding: 7px 14px; font-size: 12px; font-family: var(--mono);
+  border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px;
+  color: var(--text2);
+}
+.der-field:last-child { border-bottom: none; }
+.der-field.is-pk { color: var(--amber); }
+.der-field.is-fk { color: var(--accent); }
+.der-type { font-size: 10px; color: var(--text3); margin-left: auto; }
+.der-connector { color: var(--text3); font-size: 20px; align-self: center; }
+
+/* ── FOOTER ── */
+.footer {
+  background: var(--bg2); border-top: 1px solid var(--border);
+  padding: 14px 2rem; display: flex; align-items: center; justify-content: space-between;
+}
+.footer-text { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-brand">
+    <div class="header-icon">📦</div>
+    <div>
+      <div class="header-title">SISTEMA DE CONTROLE DE LOTES</div>
+      <div class="header-sub">Oracle APEX 19 · Oracle Database 19c · v1.0</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="pill pill-green">● WINTHOR Integrado</span>
+    <span class="pill pill-blue">Usuário: ADMIN</span>
+    <span class="pill pill-amber" id="clock-pill">26/03/2026</span>
+  </div>
+</header>
+
+<div class="shell">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="nav-section">Principal</div>
+    <button class="nav-item active" onclick="showPage('dashboard', this)">
+      <span class="nav-icon">◈</span> Dashboard
+    </button>
+
+    <div class="nav-section">Módulo Entrada</div>
+    <button class="nav-item" onclick="showPage('notas', this)">
+      <span class="nav-icon">🗒</span> Notas Fiscais
+      <span class="nav-count amber">12</span>
+    </button>
+    <button class="nav-item" onclick="showPage('lotes', this)">
+      <span class="nav-icon">⊞</span> Cadastro de Lotes
+    </button>
+    <button class="nav-item" onclick="showPage('conciliacao', this)">
+      <span class="nav-icon">⇄</span> Conciliação NF×Lote
+    </button>
+
+    <div class="nav-section">Consultas</div>
+    <button class="nav-item" onclick="showPage('alertas', this)">
+      <span class="nav-icon">⚠</span> Alertas de Validade
+      <span class="nav-count red">5</span>
+    </button>
+    <button class="nav-item" onclick="showPage('rastreabilidade', this)">
+      <span class="nav-icon">⊙</span> Rastreabilidade
+    </button>
+
+    <div class="nav-section">Técnico</div>
+    <button class="nav-item" onclick="showPage('arquitetura', this)">
+      <span class="nav-icon">⬡</span> Arquitetura
+    </button>
+    <button class="nav-item" onclick="showPage('modelo', this)">
+      <span class="nav-icon">◻</span> Modelo de Dados (DER)
+    </button>
+    <button class="nav-item" onclick="showPage('regras', this)">
+      <span class="nav-icon">§</span> Regras de Negócio
+    </button>
+    <button class="nav-item" onclick="showPage('implantacao', this)">
+      <span class="nav-icon">↑</span> Implantação
+    </button>
+
+    <div class="nav-section">Administração</div>
+    <button class="nav-item" onclick="showPage('permissoes', this)">
+      <span class="nav-icon">🔒</span> Perfis de Acesso
+    </button>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- ========== DASHBOARD ========== -->
+    <div id="page-dashboard" class="page active">
+      <div class="page-header">
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">SELECT * FROM VW_DASHBOARD_INDICADORES — atualizado 26/03/2026 10:44</div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric m-amber">
+          <div class="metric-label">Notas Pendentes</div>
+          <div class="metric-value">12</div>
+          <div class="metric-note">Aguardando processamento</div>
+        </div>
+        <div class="metric m-green">
+          <div class="metric-label">Lotes Ativos</div>
+          <div class="metric-value">348</div>
+          <div class="metric-note">Em estoque</div>
+        </div>
+        <div class="metric m-amber">
+          <div class="metric-label">Próx. Vencimento</div>
+          <div class="metric-value">27</div>
+          <div class="metric-note">Dentro de 30 dias</div>
+        </div>
+        <div class="metric m-red">
+          <div class="metric-label">Lotes Vencidos</div>
+          <div class="metric-value">5</div>
+          <div class="metric-note">Requer ação imediata</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Conciliação NF × Lotes</div>
+          <div class="progress-row">
+            <div class="progress-meta">
+              <span class="progress-label">Concluídas</span>
+              <span style="color:var(--green);font-family:var(--mono);font-size:11px;">84%</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:84%;background:var(--green);"></div></div>
+          </div>
+          <div class="progress-row">
+            <div class="progress-meta">
+              <span class="progress-label">Em processamento</span>
+              <span style="color:var(--amber);font-family:var(--mono);font-size:11px;">11%</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:11%;background:var(--amber);"></div></div>
+          </div>
+          <div class="progress-row" style="margin-bottom:0;">
+            <div class="progress-meta">
+              <span class="progress-label">Pendentes</span>
+              <span style="color:var(--red);font-family:var(--mono);font-size:11px;">5%</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:5%;background:var(--red);"></div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Distribuição de Lotes</div>
+          <div class="dot-row"><div class="dot-left"><span class="dot" style="background:var(--green);"></span>Ativos</div><span class="dot-value">348</span></div>
+          <div class="dot-row"><div class="dot-left"><span class="dot" style="background:var(--text3);"></span>Consumidos</div><span class="dot-value">1.204</span></div>
+          <div class="dot-row"><div class="dot-left"><span class="dot" style="background:var(--red);"></span>Vencidos</div><span class="dot-value">5</span></div>
+          <div class="dot-row"><div class="dot-left"><span class="dot" style="background:var(--amber);"></span>Bloqueados</div><span class="dot-value">3</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Últimas movimentações</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Lote</th><th>Produto</th><th>Ação</th><th>Usuário</th><th>Data/Hora</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">LOT-2026-0041</td><td>Amoxicilina 500mg</td><td><span class="badge b-ativo">CADASTRO</span></td><td>JOAO.SILVA</td><td class="mono">26/03/2026 10:31</td></tr>
+              <tr><td class="mono">LOT-2026-0040</td><td>Paracetamol 750mg</td><td><span class="badge b-processado">CONCILIAÇÃO</span></td><td>MARIA.LIMA</td><td class="mono">26/03/2026 09:55</td></tr>
+              <tr><td class="mono">LOT-2025-0198</td><td>Dipirona 1g</td><td><span class="badge b-vencido">VENCIMENTO</span></td><td>SISTEMA</td><td class="mono">26/03/2026 00:00</td></tr>
+              <tr><td class="mono">LOT-2026-0039</td><td>Ibuprofeno 600mg</td><td><span class="badge b-concluido">LIBERAÇÃO</span></td><td>CARLOS.P</td><td class="mono">25/03/2026 17:22</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== NOTAS FISCAIS ========== -->
+    <div id="page-notas" class="page">
+      <div class="page-header">
+        <div class="page-title">Notas Fiscais</div>
+        <div class="page-sub">SELECT * FROM NF_ENTRADA ORDER BY DATA_ENTRADA DESC</div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title" style="margin:0;">Lista de notas fiscais</span>
+          <button class="btn btn-primary btn-sm">+ Importar do WINTHOR</button>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Nº NF</th><th>Série</th><th>Fornecedor</th><th>Data Entrada</th><th>Status</th><th>Itens</th><th>Ação</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">NF-000892</td><td>001</td><td>Fornecedor Alfa Ltda</td><td class="mono">26/03/2026</td><td><span class="badge b-pendente">PENDENTE</span></td><td>8</td><td><button class="btn btn-sm">Ver lotes</button></td></tr>
+              <tr><td class="mono">NF-000891</td><td>001</td><td>Beta Distribuidora S/A</td><td class="mono">25/03/2026</td><td><span class="badge b-processado">PROCESSADO</span></td><td>14</td><td><button class="btn btn-sm">Ver lotes</button></td></tr>
+              <tr><td class="mono">NF-000890</td><td>002</td><td>Gamma Indústria ME</td><td class="mono">24/03/2026</td><td><span class="badge b-concluido">CONCLUÍDO</span></td><td>5</td><td><button class="btn btn-sm">Ver lotes</button></td></tr>
+              <tr><td class="mono">NF-000889</td><td>001</td><td>Delta Comércio Ltda</td><td class="mono">22/03/2026</td><td><span class="badge b-concluido">CONCLUÍDO</span></td><td>11</td><td><button class="btn btn-sm">Ver lotes</button></td></tr>
+              <tr><td class="mono">NF-000888</td><td>003</td><td>Epsilon Produtos S/A</td><td class="mono">21/03/2026</td><td><span class="badge b-pendente">PENDENTE</span></td><td>3</td><td><button class="btn btn-sm">Ver lotes</button></td></tr>
+              <tr><td class="mono">NF-000887</td><td>001</td><td>Zeta Farmacêutica</td><td class="mono">20/03/2026</td><td><span class="badge b-concluido">CONCLUÍDO</span></td><td>9</td><td><button class="btn btn-sm">Ver lotes</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== CADASTRO DE LOTES ========== -->
+    <div id="page-lotes" class="page">
+      <div class="page-header">
+        <div class="page-title">Cadastro de Lotes</div>
+        <div class="page-sub">INSERT INTO LOTE_CONTROLE — validações via TRG_LOTE_VALIDACAO</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Novo lote — RN001 / RN002 / RN003 / RN004 aplicadas</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Nota Fiscal (NF_ENTRADA)</label>
+            <select class="form-select">
+              <option>NF-000892 — Fornecedor Alfa Ltda</option>
+              <option>NF-000891 — Beta Distribuidora S/A</option>
+              <option>NF-000888 — Epsilon Produtos S/A</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Número do Lote (NUMERO_LOTE)</label>
+            <input class="form-input" type="text" placeholder="Ex: LOT-2026-0042" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Produto (PRODUTO_ID)</label>
+            <select class="form-select">
+              <option>Amoxicilina 500mg — #0041</option>
+              <option>Dipirona 1g — #0019</option>
+              <option>Ibuprofeno 600mg — #0033</option>
+              <option>Paracetamol 750mg — #0027</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Quantidade</label>
+            <input class="form-input" type="number" placeholder="0" min="1" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data de Fabricação (DATA_FABRICACAO)</label>
+            <input class="form-input" type="date" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data de Validade (DATA_VALIDADE)</label>
+            <input class="form-input" type="date" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Número da Embalagem (NUMERO_EMBALAGEM)</label>
+            <input class="form-input" type="text" placeholder="Ex: EMB-0091" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status Inicial</label>
+            <select class="form-select">
+              <option>ATIVO</option>
+              <option>BLOQUEADO</option>
+            </select>
+          </div>
+          <div class="form-actions form-full">
+            <button class="btn">Cancelar</button>
+            <button class="btn btn-primary">Salvar lote</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Lotes cadastrados — NF-000891</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Nº Lote</th><th>Produto</th><th>Fabricação</th><th>Validade</th><th>Qtde</th><th>Embalagem</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">LOT-2026-0039</td><td>Amoxicilina 500mg</td><td class="mono">10/01/2026</td><td class="mono">10/01/2027</td><td>120</td><td class="mono">EMB-0085</td><td><span class="badge b-ativo">ATIVO</span></td></tr>
+              <tr><td class="mono">LOT-2026-0040</td><td>Paracetamol 750mg</td><td class="mono">15/01/2026</td><td class="mono">15/07/2026</td><td>80</td><td class="mono">EMB-0086</td><td><span class="badge b-ativo">ATIVO</span></td></tr>
+              <tr><td class="mono">LOT-2025-0198</td><td>Dipirona 1g</td><td class="mono">01/06/2025</td><td class="mono">01/03/2026</td><td>40</td><td class="mono">EMB-0072</td><td><span class="badge b-vencido">VENCIDO</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== CONCILIAÇÃO ========== -->
+    <div id="page-conciliacao" class="page">
+      <div class="page-header">
+        <div class="page-title">Conciliação NF × Lotes</div>
+        <div class="page-sub">RN004 — soma dos lotes deve igualar quantidade da NF</div>
+      </div>
+      <div class="card">
+        <div class="card-title">NF-000892 — Fornecedor Alfa Ltda — 8 itens</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Produto</th><th>Qtde NF</th><th>Qtde Lotes</th><th>Diferença</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>Amoxicilina 500mg</td><td class="mono">200</td><td class="mono">200</td><td class="mono" style="color:var(--green);">0</td><td><span class="badge b-concluido">OK</span></td></tr>
+              <tr><td>Dipirona 1g</td><td class="mono">150</td><td class="mono">90</td><td class="mono" style="color:var(--amber);">-60</td><td><span class="badge b-pendente">DIVERGÊNCIA</span></td></tr>
+              <tr><td>Ibuprofeno 600mg</td><td class="mono">300</td><td class="mono">300</td><td class="mono" style="color:var(--green);">0</td><td><span class="badge b-concluido">OK</span></td></tr>
+              <tr><td>Paracetamol 750mg</td><td class="mono">100</td><td class="mono">0</td><td class="mono" style="color:var(--red);">-100</td><td><span class="badge b-vencido">SEM LOTE</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
+          <button class="btn btn-sm">Exportar Excel</button>
+          <button class="btn btn-primary btn-sm">Aprovar conciliação</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== ALERTAS ========== -->
+    <div id="page-alertas" class="page">
+      <div class="page-header">
+        <div class="page-title">Alertas de Validade</div>
+        <div class="page-sub">CREATE OR REPLACE VIEW VW_ALERTAS_VALIDADE — lotes com DATA_VALIDADE &lt;= SYSDATE + 30</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Lotes ativos próximos ao vencimento ou vencidos</div>
+        <div class="alert-row">
+          <div class="alert-indicator" style="background:var(--red);"></div>
+          <div class="alert-info">
+            <div class="alert-lote">LOT-2025-0198</div>
+            <div class="alert-prod">Dipirona 1g · Qtde: 40 unid · EMB-0072</div>
+          </div>
+          <span class="badge b-critico">CRÍTICO — VENCIDO</span>
+        </div>
+        <div class="alert-row">
+          <div class="alert-indicator" style="background:var(--amber);"></div>
+          <div class="alert-info">
+            <div class="alert-lote">LOT-2026-0011</div>
+            <div class="alert-prod">Amoxicilina 250mg · Qtde: 200 unid · EMB-0048</div>
+          </div>
+          <span class="badge b-urgente">URGENTE — 4 dias</span>
+        </div>
+        <div class="alert-row">
+          <div class="alert-indicator" style="background:#c9841c;"></div>
+          <div class="alert-info">
+            <div class="alert-lote">LOT-2026-0022</div>
+            <div class="alert-prod">Ibuprofeno 600mg · Qtde: 150 unid · EMB-0063</div>
+          </div>
+          <span class="badge b-alerta">ALERTA — 12 dias</span>
+        </div>
+        <div class="alert-row">
+          <div class="alert-indicator" style="background:var(--accent);"></div>
+          <div class="alert-info">
+            <div class="alert-lote">LOT-2026-0040</div>
+            <div class="alert-prod">Paracetamol 750mg · Qtde: 80 unid · EMB-0086</div>
+          </div>
+          <span class="badge b-atencao">ATENÇÃO — 28 dias</span>
+        </div>
+        <div class="alert-row">
+          <div class="alert-indicator" style="background:var(--accent);"></div>
+          <div class="alert-info">
+            <div class="alert-lote">LOT-2026-0033</div>
+            <div class="alert-prod">Metformin 850mg · Qtde: 60 unid · EMB-0077</div>
+          </div>
+          <span class="badge b-atencao">ATENÇÃO — 30 dias</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">SQL da view</div>
+        <div class="code-block"><span class="kw">CREATE OR REPLACE VIEW</span> VW_ALERTAS_VALIDADE <span class="kw">AS</span><br>
+<span class="kw">SELECT</span><br>
+&nbsp;&nbsp;l.ID_LOTE, l.NUMERO_LOTE, l.PRODUTO_DESCRICAO,<br>
+&nbsp;&nbsp;l.DATA_VALIDADE, l.QUANTIDADE,<br>
+&nbsp;&nbsp;<span class="kw">CASE</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">WHEN</span> l.DATA_VALIDADE &lt; SYSDATE          <span class="kw">THEN</span> <span class="str">'CRÍTICO - VENCIDO'</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">WHEN</span> l.DATA_VALIDADE &lt;= SYSDATE + <span class="num">7</span>  <span class="kw">THEN</span> <span class="str">'URGENTE - 7 DIAS'</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">WHEN</span> l.DATA_VALIDADE &lt;= SYSDATE + <span class="num">15</span> <span class="kw">THEN</span> <span class="str">'ALERTA - 15 DIAS'</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">WHEN</span> l.DATA_VALIDADE &lt;= SYSDATE + <span class="num">30</span> <span class="kw">THEN</span> <span class="str">'ATENÇÃO - 30 DIAS'</span><br>
+&nbsp;&nbsp;<span class="kw">END AS</span> NIVEL_ALERTA<br>
+<span class="kw">FROM</span> LOTE_CONTROLE l<br>
+<span class="kw">WHERE</span> l.STATUS = <span class="str">'ATIVO'</span><br>
+&nbsp;&nbsp;<span class="kw">AND</span> l.DATA_VALIDADE &lt;= SYSDATE + <span class="num">30</span><br>
+<span class="kw">ORDER BY</span> l.DATA_VALIDADE ASC;</div>
+      </div>
+    </div>
+
+    <!-- ========== RASTREABILIDADE ========== -->
+    <div id="page-rastreabilidade" class="page">
+      <div class="page-header">
+        <div class="page-title">Rastreabilidade</div>
+        <div class="page-sub">SELECT * FROM LOTE_HISTORICO WHERE ID_LOTE = :P_ID_LOTE ORDER BY DATA_ACAO</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Consultar lote</div>
+        <div style="display:flex;gap:10px;align-items:flex-end;">
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Número do lote</label>
+            <input class="form-input" type="text" placeholder="Ex: LOT-2026-0039" value="LOT-2026-0039" />
+          </div>
+          <button class="btn btn-primary" style="margin-bottom:0;">Consultar</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Histórico — LOT-2026-0039 · Amoxicilina 500mg · 120 unid</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Ação</th><th>Detalhe</th><th>Usuário</th><th>Data/Hora</th></tr></thead>
+            <tbody>
+              <tr><td class="mono" style="color:var(--text3);">1</td><td><span class="badge b-processado">CRIAÇÃO</span></td><td>Lote cadastrado via NF-000891</td><td>JOAO.SILVA</td><td class="mono">25/03/2026 14:10</td></tr>
+              <tr><td class="mono" style="color:var(--text3);">2</td><td><span class="badge b-atencao">VALIDAÇÃO</span></td><td>Datas validadas — RN001 OK</td><td>SISTEMA</td><td class="mono">25/03/2026 14:10</td></tr>
+              <tr><td class="mono" style="color:var(--text3);">3</td><td><span class="badge b-concluido">CONCILIAÇÃO</span></td><td>Qtde conciliada com NF-000891</td><td>MARIA.LIMA</td><td class="mono">25/03/2026 16:00</td></tr>
+              <tr><td class="mono" style="color:var(--text3);">4</td><td><span class="badge b-ativo">LIBERAÇÃO</span></td><td>Lote aprovado para uso — SUPERVISOR</td><td>CARLOS.P</td><td class="mono">25/03/2026 17:22</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== ARQUITETURA ========== -->
+    <div id="page-arquitetura" class="page">
+      <div class="page-header">
+        <div class="page-title">Arquitetura do Sistema</div>
+        <div class="page-sub">Visão em camadas — Oracle APEX 19 + PL/SQL + Oracle Database 19c</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Diagrama de camadas</div>
+        <div class="arch">
+          <div class="layer-apex">
+            <div class="arch-layer">
+              <div class="arch-layer-title">Camada de Apresentação</div>
+              <div class="arch-items">
+                <span class="arch-chip">Oracle APEX 19</span>
+                <span class="arch-chip">Páginas Interativas</span>
+                <span class="arch-chip">Temas Responsivos</span>
+                <span class="arch-chip">Relatórios Dinâmicos</span>
+                <span class="arch-chip">Componentes APEX</span>
+              </div>
+            </div>
+          </div>
+          <div class="arch-arrow">↕</div>
+          <div class="layer-plsql">
+            <div class="arch-layer">
+              <div class="arch-layer-title">Camada de Aplicação</div>
+              <div class="arch-items">
+                <span class="arch-chip">PL/SQL Packages</span>
+                <span class="arch-chip">Procedures</span>
+                <span class="arch-chip">Regras de Negócio</span>
+                <span class="arch-chip">Validações</span>
+                <span class="arch-chip">APIs de Integração</span>
+              </div>
+            </div>
+          </div>
+          <div class="arch-arrow">↕</div>
+          <div class="layer-db">
+            <div class="arch-layer">
+              <div class="arch-layer-title">Camada de Dados</div>
+              <div class="arch-items">
+                <span class="arch-chip">Oracle Database 19c</span>
+                <span class="arch-chip">Tabelas</span>
+                <span class="arch-chip">Views</span>
+                <span class="arch-chip">Triggers</span>
+                <span class="arch-chip">Sequences</span>
+                <span class="arch-chip">Materialized Views</span>
+                <span class="arch-chip">Índices</span>
+              </div>
+            </div>
+          </div>
+          <div class="arch-arrow">↕</div>
+          <div class="layer-int">
+            <div class="arch-layer">
+              <div class="arch-layer-title">Integrações</div>
+              <div class="arch-items">
+                <span class="arch-chip">ERP WINTHOR</span>
+                <span class="arch-chip">REST API</span>
+                <span class="arch-chip">JSON / XML</span>
+                <span class="arch-chip">Web Services</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Componentes técnicos</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Componente</th><th>Tecnologia</th><th>Versão</th></tr></thead>
+            <tbody>
+              <tr><td>Banco de Dados</td><td>Oracle Database</td><td class="mono">19c</td></tr>
+              <tr><td>Plataforma APEX</td><td>Oracle APEX</td><td class="mono">19.1+</td></tr>
+              <tr><td>Linguagem Backend</td><td>PL/SQL</td><td class="mono">19c</td></tr>
+              <tr><td>Integração</td><td>REST API</td><td class="mono">JSON/XML</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== MODELO DE DADOS ========== -->
+    <div id="page-modelo" class="page">
+      <div class="page-header">
+        <div class="page-title">Modelo de Dados (DER)</div>
+        <div class="page-sub">Diagrama Entidade-Relacionamento — 4 tabelas principais</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Entidade-Relacionamento</div>
+        <div class="der">
+          <div class="der-table">
+            <div class="der-table-header">NF_ENTRADA</div>
+            <div class="der-field is-pk"><span class="der-pk">PK</span> ID_NF <span class="der-type">NUMBER</span></div>
+            <div class="der-field">NUMERO_NF <span class="der-type">VARCHAR2(20)</span></div>
+            <div class="der-field">SERIE <span class="der-type">VARCHAR2(3)</span></div>
+            <div class="der-field">FORNECEDOR_ID <span class="der-type">NUMBER</span></div>
+            <div class="der-field">DATA_ENTRADA <span class="der-type">DATE</span></div>
+            <div class="der-field">STATUS <span class="der-type">VARCHAR2(20)</span></div>
+          </div>
+          <div class="der-connector">⊂⊃</div>
+          <div class="der-table">
+            <div class="der-table-header">NF_ITENS</div>
+            <div class="der-field is-pk"><span class="der-pk">PK</span> ID_ITEM <span class="der-type">NUMBER</span></div>
+            <div class="der-field is-fk"><span class="der-fk">FK</span> ID_NF <span class="der-type">NUMBER</span></div>
+            <div class="der-field">PRODUTO_ID <span class="der-type">NUMBER</span></div>
+            <div class="der-field">QUANTIDADE <span class="der-type">NUMBER</span></div>
+            <div class="der-field">VALOR_UNITARIO <span class="der-type">NUMBER(10,2)</span></div>
+          </div>
+          <div class="der-connector">⊂⊃</div>
+          <div class="der-table">
+            <div class="der-table-header">LOTE_CONTROLE</div>
+            <div class="der-field is-pk"><span class="der-pk">PK</span> ID_LOTE <span class="der-type">NUMBER</span></div>
+            <div class="der-field is-fk"><span class="der-fk">FK</span> ID_ITEM <span class="der-type">NUMBER</span></div>
+            <div class="der-field is-fk"><span class="der-fk">FK</span> ID_NF <span class="der-type">NUMBER</span></div>
+            <div class="der-field">NUMERO_LOTE <span class="der-type">VARCHAR2(100)</span></div>
+            <div class="der-field">DATA_FABRICACAO <span class="der-type">DATE</span></div>
+            <div class="der-field">DATA_VALIDADE <span class="der-type">DATE</span></div>
+            <div class="der-field">QUANTIDADE <span class="der-type">NUMBER</span></div>
+            <div class="der-field">NUMERO_EMBALAGEM <span class="der-type">VARCHAR2(50)</span></div>
+            <div class="der-field">STATUS <span class="der-type">VARCHAR2(20)</span></div>
+          </div>
+          <div class="der-connector">⊂⊃</div>
+          <div class="der-table">
+            <div class="der-table-header">LOTE_HISTORICO</div>
+            <div class="der-field is-pk"><span class="der-pk">PK</span> ID_HISTORICO <span class="der-type">NUMBER</span></div>
+            <div class="der-field is-fk"><span class="der-fk">FK</span> ID_LOTE <span class="der-type">NUMBER</span></div>
+            <div class="der-field">ACAO <span class="der-type">VARCHAR2(50)</span></div>
+            <div class="der-field">DATA_ACAO <span class="der-type">DATE</span></div>
+            <div class="der-field">USUARIO <span class="der-type">VARCHAR2(60)</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Scripts DDL — Sequences</div>
+        <div class="code-block">
+<span class="cm">-- Sequences</span><br>
+<span class="kw">CREATE SEQUENCE</span> SEQ_NF_ENTRADA     <span class="kw">START WITH</span> <span class="num">1</span> <span class="kw">INCREMENT BY</span> <span class="num">1</span>;<br>
+<span class="kw">CREATE SEQUENCE</span> SEQ_NF_ITENS        <span class="kw">START WITH</span> <span class="num">1</span> <span class="kw">INCREMENT BY</span> <span class="num">1</span>;<br>
+<span class="kw">CREATE SEQUENCE</span> SEQ_LOTE_CONTROLE   <span class="kw">START WITH</span> <span class="num">1</span> <span class="kw">INCREMENT BY</span> <span class="num">1</span>;<br>
+<span class="kw">CREATE SEQUENCE</span> SEQ_LOTE_HISTORICO  <span class="kw">START WITH</span> <span class="num">1</span> <span class="kw">INCREMENT BY</span> <span class="num">1</span>;
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== REGRAS DE NEGÓCIO ========== -->
+    <div id="page-regras" class="page">
+      <div class="page-header">
+        <div class="page-title">Regras de Negócio</div>
+        <div class="page-sub">TRG_LOTE_VALIDACAO — BEFORE INSERT OR UPDATE ON LOTE_CONTROLE</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Validações aplicadas</div>
+        <div class="rule-row">
+          <span class="rule-code">RN001</span>
+          <div class="rule-body">
+            <div class="rule-desc">Data de fabricação deve ser anterior à data de validade</div>
+            <div class="rule-msg">RAISE_APPLICATION_ERROR(-20001, 'Data de fabricação deve ser anterior à data de validade')</div>
+          </div>
+        </div>
+        <div class="rule-row">
+          <span class="rule-code">RN002</span>
+          <div class="rule-body">
+            <div class="rule-desc">Quantidade do lote deve ser maior que zero</div>
+            <div class="rule-msg">RAISE_APPLICATION_ERROR(-20002, 'Quantidade do lote deve ser maior que zero')</div>
+          </div>
+        </div>
+        <div class="rule-row">
+          <span class="rule-code">RN003</span>
+          <div class="rule-body">
+            <div class="rule-desc">Número de lote não pode ser duplicado na mesma NF</div>
+            <div class="rule-msg">Número de lote já cadastrado para esta NF</div>
+          </div>
+        </div>
+        <div class="rule-row" style="border:none;">
+          <span class="rule-code">RN004</span>
+          <div class="rule-body">
+            <div class="rule-desc">Soma das quantidades dos lotes deve igualar quantidade da NF</div>
+            <div class="rule-msg">A soma das quantidades deve ser igual à quantidade da nota fiscal</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Trigger PL/SQL</div>
+        <div class="code-block">
+<span class="kw">CREATE OR REPLACE TRIGGER</span> <span class="fn">TRG_LOTE_VALIDACAO</span><br>
+<span class="kw">BEFORE INSERT OR UPDATE ON</span> LOTE_CONTROLE<br>
+<span class="kw">FOR EACH ROW</span><br>
+<span class="kw">BEGIN</span><br>
+&nbsp;&nbsp;<span class="cm">-- RN001: Validação de datas</span><br>
+&nbsp;&nbsp;<span class="kw">IF</span> :NEW.DATA_FABRICACAO &gt;= :NEW.DATA_VALIDADE <span class="kw">THEN</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;RAISE_APPLICATION_ERROR(<span class="num">-20001</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="str">'Data de fabricação deve ser anterior à data de validade'</span>);<br>
+&nbsp;&nbsp;<span class="kw">END IF</span>;<br>
+<br>
+&nbsp;&nbsp;<span class="cm">-- RN002: Validação de quantidade</span><br>
+&nbsp;&nbsp;<span class="kw">IF</span> :NEW.QUANTIDADE &lt;= <span class="num">0</span> <span class="kw">THEN</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;RAISE_APPLICATION_ERROR(<span class="num">-20002</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="str">'Quantidade do lote deve ser maior que zero'</span>);<br>
+&nbsp;&nbsp;<span class="kw">END IF</span>;<br>
+<br>
+&nbsp;&nbsp;<span class="cm">-- Auto-atualiza status se vencido</span><br>
+&nbsp;&nbsp;<span class="kw">IF</span> :NEW.DATA_VALIDADE &lt; SYSDATE <span class="kw">AND</span> :NEW.STATUS = <span class="str">'ATIVO'</span> <span class="kw">THEN</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;:NEW.STATUS := <span class="str">'VENCIDO'</span>;<br>
+&nbsp;&nbsp;<span class="kw">END IF</span>;<br>
+<span class="kw">END</span>;<br>
+/
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== IMPLANTAÇÃO ========== -->
+    <div id="page-implantacao" class="page">
+      <div class="page-header">
+        <div class="page-title">Plano de Implantação</div>
+        <div class="page-sub">7 fases · duração estimada: 55 dias úteis</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Cronograma por fase</div>
+        <div class="phases">
+          <div class="phase-row">
+            <div class="phase-num">1</div>
+            <div class="phase-info"><div class="phase-name">Preparação do Ambiente</div><div class="phase-dur">5 dias úteis</div></div>
+            <div class="phase-bar"><div class="phase-fill" style="width:100%;background:var(--green);"></div></div>
+            <span class="badge b-concluido" style="flex-shrink:0;">CONCLUÍDO</span>
+          </div>
+          <div class="phase-row">
+            <div class="phase-num">2</div>
+            <div class="phase-info"><div class="phase-name">Criação do Modelo de Dados</div><div class="phase-dur">5 dias úteis</div></div>
+            <div class="phase-bar"><div class="phase-fill" style="width:100%;background:var(--green);"></div></div>
+            <span class="badge b-concluido" style="flex-shrink:0;">CONCLUÍDO</span>
+          </div>
+          <div class="phase-row">
+            <div class="phase-num">3</div>
+            <div class="phase-info"><div class="phase-name">Desenvolvimento APEX</div><div class="phase-dur">15 dias úteis</div></div>
+            <div class="phase-bar"><div class="phase-fill" style="width:60%;background:var(--accent);"></div></div>
+            <span class="badge b-processado" style="flex-shrink:0;">EM ANDAMENTO</span>
+          </div>
+          <div class="phase-row">
+            <div class="phase-num">4</div>
+            <div class="phase-info"><div class="phase-name">Integração WINTHOR</div><div class="phase-dur">10 dias úteis</div></div>
+            <div class="phase-bar"><div class="phase-fill" style="width:0%;background:var(--amber);"></div></div>
+            <span class="badge b-pendente" style="flex-shrink:0;">PENDENTE</span>
+          </div>
+          <div class="phase-row">
+            <div class="phase-num">5</div>
+            <div class="phase-info"><div class="phase-name">Testes</div><div class="phase-dur">10 dias úteis</div></div>
+            <div class="phase-bar"><div class="phase-fill" style="width:0%;background:var(--amber);"></div></div>
+            <span class="badge b-pendente" style="flex-shrink:0;">PENDENTE</span>
+          </div>
+          <div class="phase-row">
+            <div class="phase-num">6</div>
+            <div class="phase-info"><div class="phase-name">Treinamento</div><div class="phase-dur">5 dias úteis</div></div>
+            <div class="phase-bar"><div class="phase-fill" style="width:0%;background:var(--amber);"></div></div>
+            <span class="badge b-pendente" style="flex-shrink:0;">PENDENTE</span>
+          </div>
+          <div class="phase-row">
+            <div class="phase-num">7</div>
+            <div class="phase-info"><div class="phase-name">Implantação</div><div class="phase-dur">5 dias úteis</div></div>
+            <div class="phase-bar"><div class="phase-fill" style="width:0%;background:var(--amber);"></div></div>
+            <span class="badge b-pendente" style="flex-shrink:0;">PENDENTE</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Checkpoints de validação</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+          <div style="display:flex;align-items:center;gap:10px;color:var(--green);">✓ <span style="color:var(--text2);">Ambiente configurado (Oracle 19c + APEX 19)</span></div>
+          <div style="display:flex;align-items:center;gap:10px;color:var(--green);">✓ <span style="color:var(--text2);">Modelo de dados aprovado</span></div>
+          <div style="display:flex;align-items:center;gap:10px;color:var(--text3);">○ <span>Testes unitários 100% dos pacotes PL/SQL</span></div>
+          <div style="display:flex;align-items:center;gap:10px;color:var(--text3);">○ <span>Testes integrados com WINTHOR</span></div>
+          <div style="display:flex;align-items:center;gap:10px;color:var(--text3);">○ <span>UAT com 95% dos casos de uso aprovados</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== PERMISSÕES ========== -->
+    <div id="page-permissoes" class="page">
+      <div class="page-header">
+        <div class="page-title">Perfis de Acesso</div>
+        <div class="page-sub">Matriz de permissões — 4 perfis de usuário</div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Perfis do sistema</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Perfil</th><th>Descrição</th></tr></thead>
+              <tbody>
+                <tr><td><span class="badge b-ativo">OPERADOR</span></td><td style="color:var(--text2);">Usuário operacional</td></tr>
+                <tr><td><span class="badge b-processado">SUPERVISOR</span></td><td style="color:var(--text2);">Gestor do processo</td></tr>
+                <tr><td><span class="badge b-urgente">ADMIN</span></td><td style="color:var(--text2);">Administrador do sistema</td></tr>
+                <tr><td><span class="badge b-bloqueado">INTEGRAÇÃO</span></td><td style="color:var(--text2);">Usuário técnico API</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Estatísticas de acesso</div>
+          <div class="dot-row"><div class="dot-left"><span class="dot" style="background:var(--green);"></span>Operadores ativos</div><span class="dot-value">8</span></div>
+          <div class="dot-row"><div class="dot-left"><span class="dot" style="background:var(--accent);"></span>Supervisores</div><span class="dot-value">3</span></div>
+          <div class="dot-row"><div class="dot-left"><span class="dot" style="background:var(--amber);"></span>Administradores</div><span class="dot-value">2</span></div>
+          <div class="dot-row"><div class="dot-left"><span class="dot" style="background:var(--text3);"></span>Integração</div><span class="dot-value">1</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Matriz de permissões</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th style="width:40%;">Funcionalidade</th><th style="width:20%;text-align:center;">OPERADOR</th><th style="width:20%;text-align:center;">SUPERVISOR</th><th style="width:20%;text-align:center;">ADMIN</th></tr></thead>
+            <tbody>
+              <tr><td>Visualizar Dashboard</td><td class="check-ok">✓</td><td class="check-ok">✓</td><td class="check-ok">✓</td></tr>
+              <tr><td>Cadastrar Lotes</td><td class="check-ok">✓</td><td class="check-ok">✓</td><td class="check-ok">✓</td></tr>
+              <tr><td>Editar Lotes</td><td class="check-no">—</td><td class="check-ok">✓</td><td class="check-ok">✓</td></tr>
+              <tr><td>Excluir Lotes</td><td class="check-no">—</td><td class="check-no">—</td><td class="check-ok">✓</td></tr>
+              <tr><td>Aprovar Conciliação</td><td class="check-no">—</td><td class="check-ok">✓</td><td class="check-ok">✓</td></tr>
+              <tr><td>Liberar Lotes</td><td class="check-no">—</td><td class="check-ok">✓</td><td class="check-ok">✓</td></tr>
+              <tr><td>Gerenciar Usuários</td><td class="check-no">—</td><td class="check-no">—</td><td class="check-ok">✓</td></tr>
+              <tr><td>Log de Auditoria</td><td class="check-no">—</td><td class="check-no">—</td><td class="check-ok">✓</td></tr>
+              <tr><td>Parâmetros do Sistema</td><td class="check-no">—</td><td class="check-no">—</td><td class="check-ok">✓</td></tr>
+              <tr><td>API de Integração</td><td class="check-no">—</td><td class="check-no">—</td><td class="check-ok">✓</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <span class="footer-text">Documentação Técnica — Sistema de Controle de Lotes v1.0 · Oracle APEX 19 | Oracle Database 19c</span>
+  <span class="footer-text">Elaborado conforme NBR 12266/2026 · 26/03/2026</span>
+</footer>
+
+<script>
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+// Clock
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const el = document.getElementById('clock-pill');
+  if (el) el.textContent = '26/03/2026 ' + h + ':' + m;
+}
+updateClock();
+setInterval(updateClock, 30000);
+</script>
+</body>
+</html>
